@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<Devices>
+    <!-- define devices -->
+    <Device type="custom" id="station">
+        <Name>Weather station</Name>
+        <ConfigUI>
+            <!-- our address (stationID) is hidden -->
+            <Field id="address" type="textfield" hidden="true"></Field>
+            <!-- choose location -->
+            <Field id="province" type="menu">
+                <Label>Province:</Label>
+                <List class="self" filter="" method="listProvinces"/>
+                <CallbackMethod>provinceChanged</CallbackMethod>
+            </Field>
+            <!-- choose location within province -->
+            <Field id="location" type="menu">
+                <Label>Location:</Label>
+                <List class="self" filter="" method="listStations" dynamicReload="true"/>
+            </Field>
+        </ConfigUI>
+        <UiDisplayStateId>temperatureString</UiDisplayStateId>
+        <States>
+            <State id="observationDate">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Observation timestamp</TriggerLabel>
+                <ControlPageLabel>Last Observation Timestamp</ControlPageLabel>
+            </State>
+            <State id="currentCondition">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Current Condition</TriggerLabel>
+                <ControlPageLabel>Current Condition</ControlPageLabel>
+            </State>
+            <State id="temperature">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Temperature °C</TriggerLabel>
+				<ControlPageLabel>Current Temperature °C</ControlPageLabel>
+			</State>
+            <State id="dewpoint">
+				<ValueType>Number</ValueType>
+				<TriggerLabel>Dewpoint °C</TriggerLabel>
+				<ControlPageLabel>Dewpoint °C</ControlPageLabel>
+			</State>
+            <State id="temperatureString">
+				<ValueType>String</ValueType>
+				<TriggerLabel>Temperature String</TriggerLabel>
+				<ControlPageLabel>Current Temperature String</ControlPageLabel>
+			</State>
+            <State id="windSpeed">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Speed</TriggerLabel>
+                <ControlPageLabel>Wind Speed</ControlPageLabel>
+            </State>
+            <State id="windDirection">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Wind Direction</TriggerLabel>
+                <ControlPageLabel>Wind Direction</ControlPageLabel>
+            </State>
+            <State id="windBearing">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Bearing</TriggerLabel>
+                <ControlPageLabel>Wind Bearing</ControlPageLabel>
+            </State>
+            <State id="windGust">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Wind Gust</TriggerLabel>
+                <ControlPageLabel>Wind Gust</ControlPageLabel>
+            </State>
+            ￼<Field id="simpleSeparator1" type="separator"/>
+            <State id="yesterdayLowTemp">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Yesterday's Low Temperature</TriggerLabel>
+                <ControlPageLabel>Yesterday's Low Temperature</ControlPageLabel>
+            </State>
+            <State id="yesterdayHighTemp">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Yesterday's High Temperature</TriggerLabel>
+                <ControlPageLabel>Yesterday's High Temperature</ControlPageLabel>
+            </State>
+            <State id="yesterdayPrecipitation">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Yesterday's Precipitation</TriggerLabel>
+                <ControlPageLabel>Yesterday's Precipitation</ControlPageLabel>
+            </State>
+        </States>
+    </Device>
+</Devices>

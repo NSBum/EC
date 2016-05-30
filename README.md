@@ -1,5 +1,6 @@
 # EC
 Indigo 6 plugin for Environment Canada weather data
+
 ![Environment Canada](http://www.public-domain-photos.com/free-cliparts-1/flags/america/national_flag_of_canada_.png)
 
 [Indigo](https://www.indigodomo.com) is a home automation software controller for the Mac supporting multiple interface technologies.

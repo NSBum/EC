@@ -5,7 +5,8 @@ import indigo
 import indigoPluginUtils
 import re
 import urllib2
-import weather, station
+from weather import *
+from station import Station
 
 ERROR_DEFAULT = 999.9
 

@@ -5,46 +5,48 @@ import xmltodict
 
 ERROR_DEFAULT = 999.9
 
-class CurrentObservation:
-	"""Current weather observations"""
+class Observation:
 	def __init__(self,doc):
-		self.xml = doc
-		data = self.xml['siteData']['currentConditions']
-		self.timestamp = data['dateTime'][0]['timeStamp']
-		self.condition = data['condition']
-		self.temperature = float(data.get('temperature', {}).get('#text',ERROR_DEFAULT))
+		self.data = doc['siteData']['currentConditions']
+		self.timestamp = self.data['dateTime'][0]['timeStamp']
+		self.currentConditions = CurrentConditions(self.data)
+		self.yesterdayConditions = YesterdayConditions(doc['siteData']['yesterdayConditions'])
+
+class CurrentConditions:
+	def __init__(self,xml):
+		self.xml = xml
+		self.condition = self.xml['condition']
+		self.temperature = float(self.xml.get('temperature', {}).get('#text',ERROR_DEFAULT))
 		self.tempString = "{0}°C".format(self.temperature) if self.temperature != ERROR_DEFAULT else "NA"
 
-		self.dewpoint = float(data.get('dewpoint', {}).get('#text',ERROR_DEFAULT))
+		self.dewpoint = float(self.xml.get('dewpoint', {}).get('#text',ERROR_DEFAULT))
 		self.dewpointString = "{0}°C".format(self.dewpoint) if self.dewpoint != ERROR_DEFAULT else "NA"
 
-		self.humidity = float(data.get('relativeHumidity', {}).get('#text',ERROR_DEFAULT))
-		indigo.server.log(str(self.humidity))
+		self.humidity = float(self.xml.get('relativeHumidity', {}).get('#text',ERROR_DEFAULT))
+		self.pressure = float(self.xml.get('pressure', {}).get('#text',999.9))
 
-		self.pressure = float(data.get('pressure', {}).get('#text',999.9))
-		self.visibility = float(data.get('visibility', {}).get('#text',999.9))
+		self.visibility = float(self.xml.get('visibility', {}).get('#text',999.9))
+		self.winds = Winds(self.xml['wind'])
 
-		wind = data['wind']
-		self.windSpeed = int(wind['speed']['#text'])
-		self.windDirection = wind['direction']
+class Winds:
+	def __init__(self,xml):
+		self.xml = xml
+		self.windSpeed = int(self.xml['speed']['#text'])
+		self.windDirection = self.xml['direction']
 
 		#	sometimes a bearing is not provided
 		#	so use an error bearing of 999.9
-		self.windBearing = float(wind.get('bearing', {}).get('#text',999.9))
-		self.windGust = int(wind.get('gust', {}).get('#text',0))
-
-		#forecastToday = data['forecastGroup']['forecast'][0]
-		#self.precipToday = int(forecastToday['abbreviatedForecast']['pop']['#text'])
+		self.windBearing = float(self.xml.get('bearing', {}).get('#text',999.9))
+		self.windGust = int(self.xml.get('gust', {}).get('#text',0))
 
 class YesterdayConditions:
-	"""Yesterday weather conditions"""
-	def __init__(self,doc):
-		data = doc['siteData']['yesterdayConditions']
-		temp1 = float(data.get('temperature', {})[0].get('#text',999.9))
-		temp2 = float(data.get('temperature', {})[1].get('#text',999.9))
+	def __init__(self,xml):
+		self.xml = xml
+		temp1 = float(self.xml.get('temperature', {})[0].get('#text',999.9))
+		temp2 = float(self.xml.get('temperature', {})[1].get('#text',999.9))
 		self.yesterdayHigh = max(temp1,temp2)
 		self.yesterdayLow = min(temp1,temp2)
-		self.yesterdayPrecip = float(wind.get('precip', {}).get('#text',999.9))
+		self.yesterdayPrecip = float(self.xml.get('precip', {}).get('#text',999.9))
 
 class TodayForecast:
 	"""Forecast for today"""

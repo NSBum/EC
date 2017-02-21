@@ -4,18 +4,26 @@
     <Device type="custom" id="station">
         <Name>Weather station</Name>
         <ConfigUI>
-            <!-- our address (stationID) is hidden -->
-            <Field id="address" type="textfield" hidden="true"></Field>
-            <!-- choose location -->
-            <Field id="province" type="menu">
-                <Label>Province:</Label>
-                <List class="self" filter="" method="listProvinces"/>
-                <CallbackMethod>provinceChanged</CallbackMethod>
+            <!-- our address (stationID) is available from Environment Canada -->
+            <Field id="address" type="textfield">
+				<Label>Enter a station ID:</Label>
+			</Field>
+            <Field id="label" type="label" fontSize="small" fontColor="darkgray">
+				<Label>You can find the closest station by going to http://dd.weather.gc.ca/citypage_weather/docs/site_list_towns_en.csv. Click on button to go to site.</Label>
+			</Field>
+            <Field id="stationFormat" type="label" fontSize="small" fontColor="darkgray">
+                <Label>Environment Canada station ID's being with a lower case 's' followed by 7 digits"</Label>
             </Field>
-            <!-- choose location within province -->
-            <Field id="location" type="menu">
-                <Label>Location:</Label>
-                <List class="self" filter="" method="listStations" dynamicReload="true"/>
+            <Field id="goToStationURL" type="button">
+				<Label/>
+				<Title>Find Environment Canada Stations</Title>
+				<CallbackMethod>goToStationURL</CallbackMethod>
+			</Field>
+            <Field id="provinceRequiredLabel" type="label" fontSize="small" fontColor="darkgray">
+                <Label>The two letter province code (e.g. 'ON') is required</Label>
+            <Field>
+            <Field id="province" type="textfield">
+                <Label>Enter province code:</Label>
             </Field>
         </ConfigUI>
         <UiDisplayStateId>temperatureString</UiDisplayStateId>
@@ -45,6 +53,26 @@
 				<TriggerLabel>Temperature String</TriggerLabel>
 				<ControlPageLabel>Current Temperature String</ControlPageLabel>
 			</State>
+            <State id="dewpointString">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Dewpoint String</TriggerLabel>
+                <ControlPageLabel>Dewpoint String</ControlPageLabel>
+            </State>
+            <State id="humidity">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Relative Humidity</TriggerLabel>
+                <ControlPageLabel>Relative Humidity</ControlPageLabel>
+            </State>
+            <State id="pressure">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Barometric Pressure</TriggerLabel>
+                <ControlPageLabel>Barometric Pressure</ControlPageLabel>
+            </State>
+            <State id="visibility">
+                <ValueType>Number</ValueType>
+                <TriggerLabel>Visibility</TriggerLabel>
+                <ControlPageLabel>Visibility</ControlPageLabel>
+            </State>
             <State id="windSpeed">
                 <ValueType>Number</ValueType>
                 <TriggerLabel>Wind Speed</TriggerLabel>

@@ -1,7 +1,9 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import xmltodict
-import urllib2
-import sqlite3
+
+ERROR_DEFAULT = 999.9
 
 class CurrentObservation:
 	"""Current weather observations"""
@@ -10,17 +12,17 @@ class CurrentObservation:
 		data = self.xml['siteData']['currentConditions']
 		self.timestamp = data['dateTime'][0]['timeStamp']
 		self.condition = data['condition']
-		self.temperature = float(data['temperature']['#text'])
-		self.tempString = "{0}°C".format(self.temperature)
+		self.temperature = float(data.get('temperature', {}).get('#text',ERROR_DEFAULT))
+		self.tempString = "{0}°C".format(self.temperature) if self.temperature != ERROR_DEFAULT else "NA"
 
-		self.dewpoint = float(data['dewpoint']['#text'])
-		self.dewpointString = "{0}°C".format(self.dewpoint)
+		self.dewpoint = float(data.get('dewpoint', {}).get('#text',ERROR_DEFAULT))
+		self.dewpointString = "{0}°C".format(self.dewpoint) if self.dewpoint != ERROR_DEFAULT else "NA"
 
-		try:
-			self.pressure = float(data['pressure']['#text'])
-		except:
-			self.pressure = 999.9
-		self.visibility = float(data['visibility']['#text'])
+		self.humidity = float(data.get('relativeHumidity', {}).get('#text',ERROR_DEFAULT))
+		indigo.server.log(str(self.humidity))
+
+		self.pressure = float(data.get('pressure', {}).get('#text',999.9))
+		self.visibility = float(data.get('visibility', {}).get('#text',999.9))
 
 		wind = data['wind']
 		self.windSpeed = int(wind['speed']['#text'])
@@ -28,15 +30,8 @@ class CurrentObservation:
 
 		#	sometimes a bearing is not provided
 		#	so use an error bearing of 999.9
-		try:
-			self.windBearing = float(wind['bearing']['#text'])
-		except:
-			self.windBearing = 999.9
-
-		try:
-			self.windGust = int(wind['gust']['#text'])
-		except:
-			self.windGust = 0
+		self.windBearing = float(wind.get('bearing', {}).get('#text',999.9))
+		self.windGust = int(wind.get('gust', {}).get('#text',0))
 
 		#forecastToday = data['forecastGroup']['forecast'][0]
 		#self.precipToday = int(forecastToday['abbreviatedForecast']['pop']['#text'])
@@ -45,10 +40,11 @@ class YesterdayConditions:
 	"""Yesterday weather conditions"""
 	def __init__(self,doc):
 		data = doc['siteData']['yesterdayConditions']
-		temp1,temp2 = float(data['temperature'][0]['#text']),float(data['temperature'][1]['#text'])
+		temp1 = float(data.get('temperature', {})[0].get('#text',999.9))
+		temp2 = float(data.get('temperature', {})[1].get('#text',999.9))
 		self.yesterdayHigh = max(temp1,temp2)
 		self.yesterdayLow = min(temp1,temp2)
-		self.yesterdayPrecip = float(data['precip']['#text'])
+		self.yesterdayPrecip = float(wind.get('precip', {}).get('#text',999.9))
 
 class TodayForecast:
 	"""Forecast for today"""

@@ -1,16 +1,21 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import indigo
 import indigoPluginUtils
-import locations
-import weather
 import re
+
+ERROR_DEFAULT = 999.9
+
+def updateVar(name, value, folder=0):
+	if name not in indigo.variables:
+		indigo.variable.create(name, value=value, folder=folder)
+	else:
+		indigo.variable.updateValue(name, value)
+
 
 class Plugin(indigo.PluginBase):
 	"""Top-level class for the pluginId
-
-	Attributes:
-		deviceList (array): A list of devices owned by this plugin.
-		locationDB (LocationDatabase): The sqlite database used to store information about Canadian locations.
 	"""
 
 	def __init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
@@ -18,7 +23,6 @@ class Plugin(indigo.PluginBase):
 		self.mylogger = indigoPluginUtils.logger(self)
 		self.debug = False
 		self.deviceList = []
-		self.locationDB = locations.LocationDatabase()
 
 	def __del__(self):
 		indigo.PluginBase.__del__(self)
@@ -40,6 +44,9 @@ class Plugin(indigo.PluginBase):
 		self.debugLog("Stopping device: " + device.name)
 		if device.id in self.deviceList:
 			self.deviceList.remove(device.id)
+
+	def goToStationURL(self, valuesDict, typeId, devId):
+		self.browserOpen("http://dd.weather.gc.ca/citypage_weather/docs/site_list_towns_en.csv")
 
 	def runConcurrentThread(self):
 		self.debugLog("Starting concurrent tread")
@@ -63,67 +70,99 @@ class Plugin(indigo.PluginBase):
 		"""
 		self.debugLog("Updating device: " + device.name)
 
-		#	create a location object for this device
-		stationID = device.pluginProps["address"]
+		#	construct the url to fetch xml
+		addr = device.pluginProps["address"]
 		province = device.pluginProps["province"]
-		l = locations.Location(stationID, province)
-		# 	and update
-		l.update()
-
-		#	update our custom states
-		device.updateStateOnServer(key="observationDate", value=l.currentObservation.timestamp)
-		device.updateStateOnServer(key="currentCondition", value=l.currentObservation.condition)
-		device.updateStateOnServer(key="temperature", value=l.currentObservation.temperature)
-		device.updateStateOnServer(key="dewpoint", value=l.currentObservation.dewpoint)
-		device.updateStateOnServer(key="temperatureString", value=l.currentObservation.tempString)
-
-		#	current winds
-		device.updateStateOnServer(key="windSpeed", value=l.currentObservation.windSpeed)
-		device.updateStateOnServer(key="windDirection", value=l.currentObservation.windDirection)
-		device.updateStateOnServer(key="windBearing", value=l.currentObservation.windBearing)
-		device.updateStateOnServer(key="windGust", value=l.currentObservation.windGust)
-
-		#	update yesterday's weather states
-		device.updateStateOnServer(key="yesterdayHighTemp", value=l.yesterdayWeather.yesterdayHigh)
-		device.updateStateOnServer(key="yesterdayLowTemp", value=l.yesterdayWeather.yesterdayLow)
-		device.updateStateOnServer(key="yesterdayPrecipitation", value=l.yesterdayWeather.yesterdayPrecip)
+		station = Station(province,addr)
+		#	try to fetch station xml
+		try:
+			response = urllib2.urlopen(station.url())
+		except urllib2.HTTPError, e:
+			errMsg = "HTTP error updating station {0}: {1}".format(addr,str(e))
+			indigo.server.log(errMsg,isError=True)
+			return
+		except Exception, e:
+			self.errorLog("Unknown error getting station %s data: %s" % (addr, str(e)))
+			return
+		doc = xmltodict.parse(response)
+		obs = Observation(doc)
+		device.updateStateOnServer(key="observationDate", value=obs.timestamp)
+		device.updateStateOnServer(key="currentCondition", value=obs.currentConditions.condition)
+		device.updateStateOnServer(key="temperature", value=obs.currentConditions.temperature)
+		device.updateStateOnServer(key="temperatureString", value=obs.currentConditions.tempString)
+		device.updateStateOnServer(key="dewpoint", value=obs.currentConditions.dewpoint)
+		device.updateStateOnServer(key="dewpointString", value=obs.currentConditions.dewpointString)
+		device.updateStateOnServer(key="humidity", value=obs.currentConditions.humidity)
+		device.updateStateOnServer(key="pressure", value=obs.currentConditions.pressure)
+		device.updateStateOnServer(key="visibility", value=obs.currentConditions.visibility)
+		device.updateStateOnServer(key="windSpeed", value=obs.currentConditions.winds.windSpeed)
+		device.updateStateOnServer(key="windDirection", value=obs.currentConditions.winds.windDirection)
+		device.updateStateOnServer(key="windBearing", value=obs.currentConditions.winds.windBearing)
+		device.updateStateOnServer(key="windGust", value=obs.currentConditions.winds.windGust)
+		device.updateStateOnServer(key="yesterdayHighTemp", value=obs.yesterdayConditions.yesterdayHigh)
+		device.updateStateOnServer(key="yesterdayLowTemp", value=obs.yesterdayConditionsyesterdayLow)
+		device.updateStateOnServer(key="yesterdayPrecipitation", value=obs.yesterdayConditionsyesterdayPrecip)
 
 	def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-		self.selectedProvince = valuesDict['province']
-		rawLocation = valuesDict['location']
-		match = re.search("\((.+)\)", rawLocation)
-		#	update hidden field "stationID"
-		valuesDict['address'] = match.group(1)
-
+		stationID = valuesDict['address'].encode('ascii','ignore').lower()
+		province = valuesDict['province'].encode('ascii','ignore').upper()
+		station = Station(province,stationID)
+		try:
+			urllib2.urlopen(station.url())
+		except urllib2.HTTPError, e:
+			errorsDict = indigo.Dict()
+			errorsDict['address'] = "Station not found or isn't responding"
+			self.errorLog("Error getting station %s data: %s" % (stationID, str(e)))
+			return (False, valuesDict, errorsDict)
 		indigo.server.log(valuesDict['address'])
 		return (True, valuesDict)
 
-	def listProvinces(self, filter="", valuesDict=None, typeId="", targetId=0):
-		"""Dynamic list method for provinces."""
-		provinceTuples = []
-		for prov in self.locationDB.provinces():
-			option = prov[0].encode('utf-8')
-			provinceTuples.append((option,option))
-		return provinceTuples
+class Observation(self):
+	def __init__(self,doc):
+		self.data = doc['siteData']['currentConditions']
+		self.timestamp = self.data['dateTime'][0]['timeStamp']
+		self.currentConditions = CurrentConditions(self.data)
+		self.yesterdayConditions = YesterdayConditions(doc['siteData']['yesterdayConditions'])
 
-	def listStations(self, filter="", valuesDict=None, typeId="", targetId=0):
-		"""Dynamic list method for stations/cities."""
-		locations = []
-		stations = []
-		self.debugLog(u"Generating stations")
-		try:
-			province = valuesDict["province"]
-		except:
-			province = ""
-		stations = self.locationDB.stationsForProvice(province)
-		for loc in stations:
-			city,option = loc[1].encode('utf-8'),loc[0].encode('utf-8')
-			stationName = "{0} ({1})".format(city,option)
-			locations.append(stationName)
-		return locations
+class CurrentConditions(self):
+	def __init__(self,xml):
+		self.xml = xml
+		self.condition = self.xml['condition']
+		self.temperature = float(self.xml.get('temperature', {}).get('#text',ERROR_DEFAULT))
+		self.tempString = "{0}°C".format(self.temperature) if self.temperature != ERROR_DEFAULT else "NA"
 
-	def provinceChanged(self, valuesDict, typeId, devId):
-		"""Callback method when the province was changed by the user."""
-		indigo.server.log("selectedProvince = {0}".format(valuesDict['province']))
+		self.dewpoint = float(self.xml.get('dewpoint', {}).get('#text',ERROR_DEFAULT))
+		self.dewpointString = "{0}°C".format(self.dewpoint) if self.dewpoint != ERROR_DEFAULT else "NA"
 
-		return valuesDict
+		self.humidity = float(self.xml.get('relativeHumidity', {}).get('#text',ERROR_DEFAULT))
+		self.pressure = float(self.xml.get('pressure', {}).get('#text',999.9))
+
+		self.visibility = float(self.xml.get('visibility', {}).get('#text',999.9))
+		self.winds = Winds(self.xml['wind'])
+
+class Winds(self):
+	def __init__(self,xml):
+		self.xml = xml
+		windSpeed = int(self.xml['speed']['#text'])
+		windDirection = self.xml['direction']
+
+		#	sometimes a bearing is not provided
+		#	so use an error bearing of 999.9
+		windBearing = float(self.xml.get('bearing', {}).get('#text',999.9))
+		windGust = int(self.xml.get('gust', {}).get('#text',0))
+
+class YesterdayConditions(self):
+	def __init__(self,xml):
+		self.xml = xml
+		temp1 = float(self.xml.get('temperature', {})[0].get('#text',999.9))
+		temp2 = float(self.xml.get('temperature', {})[1].get('#text',999.9))
+		yesterdayHigh = max(temp1,temp2)
+		yesterdayLow = min(temp1,temp2)
+		yesterdayPrecip = float(self.xml.get('precip', {}).get('#text',999.9))
+
+class Station
+	def __init__(self,province,stationID):
+		self.prov = province
+		self.addr = stationID
+	def url(self):
+		return "http://dd.weather.gc.ca/citypage_weather/xml/{0}/{1}_e.xml".format(addr,province)

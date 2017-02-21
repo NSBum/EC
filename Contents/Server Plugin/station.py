@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 class Station:
+    """An Environment Canada reporting site
+    """
 	def __init__(self,province,stationID):
 		self.prov = province
 		self.addr = stationID

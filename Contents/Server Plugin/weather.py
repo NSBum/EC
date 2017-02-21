@@ -6,6 +6,8 @@ import xmltodict
 ERROR_DEFAULT = 999.9
 
 class Observation:
+	"""A weather observation from Environment Canada
+	"""
 	def __init__(self,doc):
 		self.data = doc['siteData']['currentConditions']
 		self.timestamp = self.data['dateTime'][0]['timeStamp']
@@ -13,6 +15,8 @@ class Observation:
 		self.yesterdayConditions = YesterdayConditions(doc['siteData']['yesterdayConditions'])
 
 class CurrentConditions:
+	"""Current weather conditions at a station
+	"""
 	def __init__(self,xml):
 		self.xml = xml
 		self.condition = self.xml['condition']
@@ -29,6 +33,8 @@ class CurrentConditions:
 		self.winds = Winds(self.xml['wind'])
 
 class Winds:
+	"""Current winds structure at station
+	"""
 	def __init__(self,xml):
 		self.xml = xml
 		self.windSpeed = int(self.xml['speed']['#text'])
@@ -40,6 +46,8 @@ class Winds:
 		self.windGust = int(self.xml.get('gust', {}).get('#text',0))
 
 class YesterdayConditions:
+	"""Prior day conditions at station
+	"""
 	def __init__(self,xml):
 		self.xml = xml
 		temp1 = float(self.xml.get('temperature', {})[0].get('#text',999.9))
@@ -48,6 +56,7 @@ class YesterdayConditions:
 		self.yesterdayLow = min(temp1,temp2)
 		self.yesterdayPrecip = float(self.xml.get('precip', {}).get('#text',999.9))
 
+# This is still unimplemented
 class TodayForecast:
 	"""Forecast for today"""
 	def __init__(self,doc):

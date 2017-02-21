@@ -89,6 +89,8 @@ class Plugin(indigo.PluginBase):
 			return
 		doc = xmltodict.parse(response)
 		obs = Observation(doc)
+
+		# update states on the server
 		device.updateStateOnServer(key="observationDate", value=obs.timestamp)
 		device.updateStateOnServer(key="currentCondition", value=obs.currentConditions.condition)
 		device.updateStateOnServer(key="temperature", value=obs.currentConditions.temperature)

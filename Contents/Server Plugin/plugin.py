@@ -4,6 +4,8 @@
 import indigo
 import indigoPluginUtils
 import re
+import urllib2
+import xmltodict
 
 ERROR_DEFAULT = 999.9
 
@@ -100,13 +102,14 @@ class Plugin(indigo.PluginBase):
 		device.updateStateOnServer(key="windBearing", value=obs.currentConditions.winds.windBearing)
 		device.updateStateOnServer(key="windGust", value=obs.currentConditions.winds.windGust)
 		device.updateStateOnServer(key="yesterdayHighTemp", value=obs.yesterdayConditions.yesterdayHigh)
-		device.updateStateOnServer(key="yesterdayLowTemp", value=obs.yesterdayConditionsyesterdayLow)
-		device.updateStateOnServer(key="yesterdayPrecipitation", value=obs.yesterdayConditionsyesterdayPrecip)
+		device.updateStateOnServer(key="yesterdayLowTemp", value=obs.yesterdayConditions.yesterdayLow)
+		device.updateStateOnServer(key="yesterdayPrecipitation", value=obs.yesterdayConditions.yesterdayPrecip)
 
 	def validateDeviceConfigUi(self, valuesDict, typeId, devId):
 		stationID = valuesDict['address'].encode('ascii','ignore').lower()
 		province = valuesDict['province'].encode('ascii','ignore').upper()
 		station = Station(province,stationID)
+		indigo.server.log(station.url())
 		try:
 			urllib2.urlopen(station.url())
 		except urllib2.HTTPError, e:
@@ -117,14 +120,14 @@ class Plugin(indigo.PluginBase):
 		indigo.server.log(valuesDict['address'])
 		return (True, valuesDict)
 
-class Observation(self):
+class Observation:
 	def __init__(self,doc):
 		self.data = doc['siteData']['currentConditions']
 		self.timestamp = self.data['dateTime'][0]['timeStamp']
 		self.currentConditions = CurrentConditions(self.data)
 		self.yesterdayConditions = YesterdayConditions(doc['siteData']['yesterdayConditions'])
 
-class CurrentConditions(self):
+class CurrentConditions:
 	def __init__(self,xml):
 		self.xml = xml
 		self.condition = self.xml['condition']
@@ -140,29 +143,29 @@ class CurrentConditions(self):
 		self.visibility = float(self.xml.get('visibility', {}).get('#text',999.9))
 		self.winds = Winds(self.xml['wind'])
 
-class Winds(self):
+class Winds:
 	def __init__(self,xml):
 		self.xml = xml
-		windSpeed = int(self.xml['speed']['#text'])
-		windDirection = self.xml['direction']
+		self.windSpeed = int(self.xml['speed']['#text'])
+		self.windDirection = self.xml['direction']
 
 		#	sometimes a bearing is not provided
 		#	so use an error bearing of 999.9
-		windBearing = float(self.xml.get('bearing', {}).get('#text',999.9))
-		windGust = int(self.xml.get('gust', {}).get('#text',0))
+		self.windBearing = float(self.xml.get('bearing', {}).get('#text',999.9))
+		self.windGust = int(self.xml.get('gust', {}).get('#text',0))
 
-class YesterdayConditions(self):
+class YesterdayConditions:
 	def __init__(self,xml):
 		self.xml = xml
 		temp1 = float(self.xml.get('temperature', {})[0].get('#text',999.9))
 		temp2 = float(self.xml.get('temperature', {})[1].get('#text',999.9))
-		yesterdayHigh = max(temp1,temp2)
-		yesterdayLow = min(temp1,temp2)
-		yesterdayPrecip = float(self.xml.get('precip', {}).get('#text',999.9))
+		self.yesterdayHigh = max(temp1,temp2)
+		self.yesterdayLow = min(temp1,temp2)
+		self.yesterdayPrecip = float(self.xml.get('precip', {}).get('#text',999.9))
 
-class Station
+class Station:
 	def __init__(self,province,stationID):
 		self.prov = province
 		self.addr = stationID
 	def url(self):
-		return "http://dd.weather.gc.ca/citypage_weather/xml/{0}/{1}_e.xml".format(addr,province)
+		return "http://dd.weather.gc.ca/citypage_weather/xml/{0}/{1}_e.xml".format(self.prov,self.addr)
